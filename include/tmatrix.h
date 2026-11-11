@@ -232,6 +232,10 @@ public:
   {
     size_t r, c;
     istr >> r >> c;
+    
+    if (r == 0 || r > MAX_MATRIX_SIZE || c == 0 || c > MAX_MATRIX_SIZE)
+      throw out_of_range("Matrix dimensions should be between 1 and MAX_MATRIX_SIZE");
+
     vector<vector<T>> dense(r, vector<T>(c));
     for (size_t i = 0; i < r; i++)
       for (size_t j = 0; j < c; j++)
