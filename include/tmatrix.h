@@ -153,30 +153,30 @@ public:
   // Транспонирование матрицы (возвращает новую матрицу в формате CRS)
   TCRSMatrix transpose() const
   {
+    vector<vector<T>> valueVectors(cols);
+    vector<vector<size_t>> indexVectors(cols);
+
+    for (size_t i = 0; i < rows; i++) {
+        for (size_t nz = row_ptr[i]; nz < row_ptr[i + 1]; nz++) {
+            size_t j = col_index[nz];
+            T v = values[nz];
+
+            indexVectors[j].push_back(i);
+            valueVectors[j].push_back(v);
+        }
+    }
+
     TCRSMatrix res(cols, rows);
-    res.values.resize(values.size());
-    res.col_index.resize(col_index.size());
+    res.row_ptr[0] = 0;
 
-    for (size_t i = 0; i < values.size(); i++){
-      size_t old_col = col_index[i];
-      res.row_ptr[old_col + 1]++;
+    for (size_t j = 0; j < cols; j++) {
+        for (size_t k = 0; k < valueVectors[j].size(); k++) {
+            res.values.push_back(valueVectors[j][k]);
+            res.col_index.push_back(indexVectors[j][k]);
+        }
+        res.row_ptr[j + 1] = res.values.size();
     }
 
-    for (size_t i = 0; i < cols; i++)
-      res.row_ptr[i + 1] += res.row_ptr[i];
-
-    vector<size_t> cur_pos = res.row_ptr; 
-    for (size_t old_row = 0; old_row < rows; ++old_row) {
-      for (size_t nz = row_ptr[old_row]; nz < row_ptr[old_row + 1]; ++nz) {
-
-        size_t old_col = col_index[nz];
-        size_t new_pos = cur_pos[old_col];
-        cur_pos[old_col]++;
-    
-        res.values[new_pos] = values[nz];
-        res.col_index[new_pos] = old_row;
-      }
-    }
     return res;
   }
 
@@ -199,28 +199,28 @@ public:
       throw invalid_argument("Matrix dimensions incorrect for multiplication");
 
     TCRSMatrix res(rows, m.cols);
-    vector<T> accumulator(m.cols, T(0));
+    vector<T> temp(m.cols, T(0));
 
-    for (size_t i = 0; i < rows; ++i) {
+    for (size_t i = 0; i < rows; i++) {
       
-      for (size_t nza = row_ptr[i]; nza < row_ptr[i + 1]; ++nza) {
+      for (size_t nza = row_ptr[i]; nza < row_ptr[i + 1]; nza++) {
         size_t a_col = col_index[nza];
         T a_val = values[nza];
 
-        for (size_t n = m.row_ptr[a_col]; n < m.row_ptr[a_col + 1]; ++n) {
+        for (size_t n = m.row_ptr[a_col]; n < m.row_ptr[a_col + 1]; n++) {
           size_t b_col = m.col_index[n];
           T b_val = m.values[n];
 
-          accumulator[b_col] += a_val * b_val;
+          temp[b_col] += a_val * b_val;
         }
       }
 
-      for (size_t j = 0; j < m.cols; ++j) {
-        if (!isZero(accumulator[j])) {
-          res.values.push_back(accumulator[j]);
+      for (size_t j = 0; j < m.cols; j++) {
+        if (!isZero(temp[j])) {
+          res.values.push_back(temp[j]);
           res.col_index.push_back(j);
         }
-        accumulator[j] = T(0);
+        temp[j] = T(0);
       }
       res.row_ptr[i + 1] = res.values.size();
     }
